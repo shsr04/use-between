@@ -119,6 +119,16 @@ const ownDisptacher = {
 
     return box.fn
   },
+  
+  useEffectEvent(fn: any) {
+    const box = nextBox()
+    box.fn = fn
+    // "Effect Event functions do not have a stable identity. Their identity intentionally changes on every render."
+    // (https://react.dev/reference/react/useEffectEvent#reference)
+    box.event = (...args: any[]) => box.fn(...args)
+    box.initialized = true
+    return box.event
+  },
 
   useMemo(fn: any, deps: any[]) {
     const box = nextBox()

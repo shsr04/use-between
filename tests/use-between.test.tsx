@@ -7,7 +7,8 @@ import React, {
   useMemo,
   useRef,
   useImperativeHandle,
-  useContext
+  useContext,
+  useEffectEvent
 } from 'react'
 import { render, fireEvent } from '@testing-library/react'
 import { get, useBetween, free } from '../src'
@@ -176,6 +177,67 @@ test('Should work useCallback hook', () => {
   fireEvent.click(el.getByTestId('set-a'))
   expect(fns.length).toBe(3)
   expect(fns[2] === lastFn).toBeTruthy()
+});
+
+test('useEffectEvent hook should work', () => {
+  let listener: () => void = () => {}
+  let listenerInstances: Array<() => void> = []
+  let values: number[] = []
+  let effectCalls = 0
+
+  // Set up hook
+  const useHandler = () => {
+    const [value, setValue] = useState(10)
+
+    const handleChange = useEffectEvent(() => {
+      values.push(value)
+    })
+
+    listenerInstances.push(handleChange)
+
+    useEffect(() => {
+      listener = handleChange
+      effectCalls++
+    }, [])
+
+    return { setValue }
+  }
+
+  const A = () => {
+    const { setValue } = useBetween(useHandler)
+    return (
+      <>
+        <button data-testid="setter" onClick={() => setValue((x) => x + 10)} />
+      </>
+    )
+  }
+
+  // Render test component
+  const el = render(<A />)
+
+  // First render: calls useEffect
+  expect(effectCalls).toBe(1)
+  expect(values.length).toBe(0)
+  expect(listenerInstances.length).toBe(1)
+
+  // Call listener: new value, but no render
+  listener()
+  expect(effectCalls).toBe(1)
+  expect(values).toStrictEqual([10])
+  expect(listenerInstances.length).toBe(1)
+
+  // Second render: new listener instance, but no effect call
+  fireEvent.click(el.getByTestId("setter"))
+  expect(effectCalls).toBe(1)
+  expect(values).toStrictEqual([10])
+  expect(listenerInstances.length).toBe(2)
+  expect(listenerInstances[0]).not.toEqual(listenerInstances[1])
+
+  // Call listener: new value, but no render
+  listener()
+  expect(effectCalls).toBe(1)
+  expect(values).toStrictEqual([10, 20])
+  expect(listenerInstances.length).toBe(2)
 });
 
 test('Should work useLayoutEffect hook', () => {
